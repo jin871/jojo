@@ -3,200 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ジョジョの奇妙な決闘 - デモ版</title>
+    <title>2Dアクション デモ</title>
     <style>
-        body { font-family: "Helvetica", "Arial", sans-serif; background-color: #1a1a1a; color: #fff; text-align: center; }
-        .container { display: flex; justify-content: space-around; max-width: 1000px; margin: 20px auto; padding: 20px; background-color: #333; border: 2px solid #fff; }
-        .player-panel { width: 45%; padding: 15px; border: 2px solid #ccc; transition: all 0.3s; }
-        .player-panel.active { border-color: #fdd835; box-shadow: 0 0 20px #fdd835; }
-        .player-panel h2 { margin-top: 0; }
-        .status-text { font-size: 1.2em; font-weight: bold; }
-        .status-text.stand-on { color: #fdd835; }
-        .status-text.stand-off { color: #81d4fa; }
-        .bar { background-color: #555; border-radius: 5px; overflow: hidden; margin: 10px 0; border: 1px solid #000; }
-        .bar-fill { height: 25px; transition: width 0.5s; }
-        #p1-hp-fill { background-color: #4caf50; }
-        #p2-hp-fill { background-color: #4caf50; }
-        #p1-stand-fill { background-color: #fdd835; }
-        #p2-stand-fill { background-color: #fdd835; }
-        .actions { margin-top: 20px; }
-        .actions button { font-size: 1em; padding: 10px 15px; margin: 5px; cursor: pointer; border: 2px solid; background-color: #444; color: #fff; }
-        .actions button:disabled { cursor: not-allowed; opacity: 0.5; }
-        #log { margin-top: 20px; height: 150px; overflow-y: scroll; background-color: #222; border: 1px solid #555; padding: 10px; text-align: left; }
-        #log p { margin: 5px 0; }
-        .gogogo { font-size: 3em; font-weight: bold; position: absolute; opacity: 0.1; user-select: none; }
+        body {
+            margin: 0;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            font-family: sans-serif;
+        }
+        canvas {
+            background-color: #000;
+            border: 2px solid #fff;
+        }
+        #instructions {
+            margin-top: 15px;
+            text-align: left;
+            border: 1px solid #555;
+            padding: 10px;
+            background-color: #333;
+        }
     </style>
 </head>
 <body>
-    <h1>ジョジョの奇妙な決闘 - デモ版</h1>
-    <div class="container">
-        <div id="p1-panel" class="player-panel">
-            <h2>空条承太郎</h2>
-            <p>HP: <span id="p1-hp-text">100</span> / 100</p>
-            <div class="bar"><div id="p1-hp-fill" class="bar-fill"></div></div>
-            <p>スタンドゲージ: <span id="p1-stand-text">0</span> / 100</p>
-            <div class="bar"><div id="p1-stand-fill" class="bar-fill" style="width: 0%;"></div></div>
-            <p id="p1-status" class="status-text stand-off">スタンド：OFF</p>
-        </div>
-        <div id="p2-panel" class="player-panel">
-            <h2>DIO</h2>
-            <p>HP: <span id="p2-hp-text">100</span> / 100</p>
-            <div class="bar"><div id="p2-hp-fill" class="bar-fill"></div></div>
-            <p>スタンドゲージ: <span id="p2-stand-text">0</span> / 100</p>
-            <div class="bar"><div id="p2-stand-fill" class="bar-fill" style="width: 0%;"></div></div>
-            <p id="p2-status" class="status-text stand-off">スタンド：OFF</p>
-        </div>
+    <h1>2Dアクション 技術デモ</h1>
+    <canvas id="gameCanvas" width="1024" height="576"></canvas>
+    <div id="instructions">
+        <h3>操作方法</h3>
+        <p><b>プレイヤー1 (青):</b> W (ジャンプ), A (左), D (右), S (攻撃)</p>
+        <p><b>プレイヤー2 (黄):</b> ↑ (ジャンプ), ← (左), → (右), ↓ (攻撃)</p>
     </div>
-
-    <div class="actions">
-        <button id="attack-btn">攻撃</button>
-        <button id="stand-attack-btn">スタンド攻撃</button>
-        <button id="pose-btn">ポーズ / 挑発</button>
-        <button id="special-btn">必殺技</button>
-        <button id="stand-toggle-btn">スタンドON/OFF</button>
-    </div>
-
-    <div id="log"></div>
 
     <script>
-        const gameState = {
-            turn: 0, // 0 for Player 1, 1 for Player 2
-            players: [
-                { name: "空条承太郎", hp: 100, maxHp: 100, standGauge: 0, isStandOn: false, skipTurn: false },
-                { name: "DIO", hp: 100, maxHp: 100, standGauge: 0, isStandOn: false, skipTurn: false }
-            ],
-            log: []
-        };
+        const canvas = document.getElementById('gameCanvas');
+        const c = canvas.getContext('2d');
 
-        // DOM Elements
-        const p1 = {
-            panel: document.getElementById('p1-panel'), hpText: document.getElementById('p1-hp-text'), hpFill: document.getElementById('p1-hp-fill'),
-            standText: document.getElementById('p1-stand-text'), standFill: document.getElementById('p1-stand-fill'), status: document.getElementById('p1-status')
-        };
-        const p2 = {
-            panel: document.getElementById('p2-panel'), hpText: document.getElementById('p2-hp-text'), hpFill: document.getElementById('p2-hp-fill'),
-            standText: document.getElementById('p2-stand-text'), standFill: document.getElementById('p2-stand-fill'), status: document.getElementById('p2-status')
-        };
-        const domPlayers = [p1, p2];
-        const logEl = document.getElementById('log');
-        const attackBtn = document.getElementById('attack-btn');
-        const standAttackBtn = document.getElementById('stand-attack-btn');
-        const poseBtn = document.getElementById('pose-btn');
-        const specialBtn = document.getElementById('special-btn');
-        const standToggleBtn = document.getElementById('stand-toggle-btn');
+        const gravity = 0.7;
 
-        // Game Logic
-        function updateLog(message) {
-            gameState.log.unshift(message);
-            if (gameState.log.length > 10) gameState.log.pop();
-            logEl.innerHTML = gameState.log.map(msg => `<p>${msg}</p>`).join('');
-        }
-
-        function render() {
-            gameState.players.forEach((p, i) => {
-                const dom = domPlayers[i];
-                dom.hpText.textContent = p.hp;
-                dom.hpFill.style.width = `${(p.hp / p.maxHp) * 100}%`;
-                dom.standText.textContent = p.standGauge;
-                dom.standFill.style.width = `${p.standGauge}%`;
-                dom.status.textContent = p.isStandOn ? "スタンド：ON" : "スタンド：OFF";
-                dom.status.className = p.isStandOn ? "status-text stand-on" : "status-text stand-off";
-            });
-
-            // Active player highlight
-            p1.panel.classList.toggle('active', gameState.turn === 0);
-            p2.panel.classList.toggle('active', gameState.turn === 1);
-
-            // Update button states
-            const currentPlayer = gameState.players[gameState.turn];
-            standAttackBtn.disabled = !currentPlayer.isStandOn;
-            specialBtn.disabled = !currentPlayer.isStandOn || currentPlayer.standGauge < 100;
-        }
-
-        function nextTurn() {
-            const opponentIndex = 1 - gameState.turn;
-            if (gameState.players[opponentIndex].hp <= 0) {
-                updateLog(`決着ッ！ ${gameState.players[gameState.turn].name} の勝利！`);
-                document.querySelectorAll('.actions button').forEach(b => b.disabled = true);
-                return;
+        class Player {
+            constructor({ position, velocity, color = 'red', attackBox = { offset: {}, width: 100, height: 50 }}) {
+                this.position = position;
+                this.velocity = velocity;
+                this.width = 50;
+                this.height = 150;
+                this.lastKey = '';
+                this.attackBox = {
+                    position: {
+                        x: this.position.x,
+                        y: this.position.y
+                    },
+                    offset: attackBox.offset,
+                    width: attackBox.width,
+                    height: attackBox.height
+                };
+                this.color = color;
+                this.isAttacking = false;
+                this.health = 100;
             }
 
-            gameState.turn = opponentIndex;
-            
-            if (gameState.players[gameState.turn].skipTurn) {
-                gameState.players[gameState.turn].skipTurn = false;
-                updateLog(`${gameState.players[gameState.turn].name} は動けない！`);
-                render();
-                setTimeout(nextTurn, 1000);
-                return;
+            draw() {
+                c.fillStyle = this.color;
+                c.fillRect(this.position.x, this.position.y, this.width, this.height);
+
+                // 攻撃判定ボックス（デバッグ用に半透明で表示）
+                /* if (this.isAttacking) {
+                    c.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    c.fillRect(
+                        this.attackBox.position.x,
+                        this.attackBox.position.y,
+                        this.attackBox.width,
+                        this.attackBox.height
+                    );
+                } */
             }
 
-            updateLog(`${gameState.players[gameState.turn].name} のターン。`);
-            render();
+            update() {
+                this.draw();
+                this.attackBox.position.x = this.position.x + this.attackBox.offset.x;
+                this.attackBox.position.y = this.position.y + this.attackBox.offset.y;
+
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+
+                // 重力処理
+                if (this.position.y + this.height + this.velocity.y >= canvas.height) {
+                    this.velocity.y = 0;
+                } else {
+                    this.velocity.y += gravity;
+                }
+            }
+            
+            attack() {
+                this.isAttacking = true;
+                setTimeout(() => {
+                    this.isAttacking = false;
+                }, 100); // 攻撃判定が持続する時間 (100ms)
+            }
         }
 
-        attackBtn.addEventListener('click', () => {
-            const attacker = gameState.players[gameState.turn];
-            const defender = gameState.players[1 - gameState.turn];
-            const damage = 5 + Math.floor(Math.random() * 6); // 5-10
-            const gaugeGain = 15;
-            
-            defender.hp = Math.max(0, defender.hp - damage);
-            attacker.standGauge = Math.min(100, attacker.standGauge + gaugeGain);
-
-            updateLog(`${attacker.name}の攻撃！ ${defender.name}に${damage}のダメージ！`);
-            updateLog(`${attacker.name}のスタンドゲージが${gaugeGain}溜まった。`);
-            nextTurn();
+        const player1 = new Player({
+            position: { x: 200, y: 100 },
+            velocity: { x: 0, y: 0 },
+            color: '#81d4fa', // 青色
+            attackBox: { offset: { x: 50, y: 50 }, width: 100, height: 50 }
         });
 
-        standAttackBtn.addEventListener('click', () => {
-            const attacker = gameState.players[gameState.turn];
-            const defender = gameState.players[1 - gameState.turn];
-            // スタンドモード中は被ダメージ増加
-            const damageMultiplier = defender.isStandOn ? 1.5 : 1.0;
-            const damage = Math.round((15 + Math.floor(Math.random() * 6)) * damageMultiplier); // 15-20 base
-            
-            defender.hp = Math.max(0, defender.hp - damage);
-
-            updateLog(`スタンド攻撃！「オラァッ！」 ${defender.name}に${damage}のダメージ！`);
-            nextTurn();
-        });
-
-        poseBtn.addEventListener('click', () => {
-            const attacker = gameState.players[gameState.turn];
-            const gaugeGain = 35 + Math.floor(Math.random() * 11); // 35-45
-            attacker.standGauge = Math.min(100, attacker.standGauge + gaugeGain);
-            
-            updateLog(`${attacker.name}は挑発的なポーズをとった！ スタンドゲージが${gaugeGain}大幅に上昇！`);
-            nextTurn();
-        });
-
-        specialBtn.addEventListener('click', () => {
-            const attacker = gameState.players[gameState.turn];
-            const defender = gameState.players[1 - gameState.turn];
-            attacker.standGauge = 0;
-            defender.skipTurn = true;
-            
-            const specialName = attacker.name === "空条承太郎" ? "スタープラチナ・ザ・ワールド！" : "ザ・ワールド！時よ止まれ！";
-            updateLog(`「${specialName}」 ${attacker.name}は時を止めた！`);
-            nextTurn();
+        const player2 = new Player({
+            position: { x: 700, y: 100 },
+            velocity: { x: 0, y: 0 },
+            color: '#fdd835', // 黄色
+            attackBox: { offset: { x: -100, y: 50 }, width: 100, height: 50 }
         });
         
-        standToggleBtn.addEventListener('click', () => {
-            const player = gameState.players[gameState.turn];
-            player.isStandOn = !player.isStandOn;
-            updateLog(`${player.name}はスタンドを${player.isStandOn ? '出した' : 'しまった'}。`);
-            render();
-        });
+        const keys = {
+            a: { pressed: false },
+            d: { pressed: false },
+            ArrowRight: { pressed: false },
+            ArrowLeft: { pressed: false }
+        };
 
-        // Initial setup
-        function init() {
-            updateLog("戦闘開始！");
-            updateLog(`${gameState.players[gameState.turn].name} のターン。`);
-            render();
+        function rectangularCollision({ rectangle1, rectangle2 }) {
+            return (
+                rectangle1.attackBox.position.x + rectangle1.attackBox.width >= rectangle2.position.x &&
+                rectangle1.attackBox.position.x <= rectangle2.position.x + rectangle2.width &&
+                rectangle1.attackBox.position.y + rectangle1.attackBox.height >= rectangle2.position.y &&
+                rectangle1.attackBox.position.y <= rectangle2.position.y + rectangle2.height
+            );
         }
 
-        init();
+        function animate() {
+            window.requestAnimationFrame(animate);
+            c.fillStyle = '#1e1e1e';
+            c.fillRect(0, 0, canvas.width, canvas.height);
+            
+            player1.update();
+            player2.update();
+
+            player1.velocity.x = 0;
+            player2.velocity.x = 0;
+
+            // Player 1 movement
+            if (keys.a.pressed && player1.lastKey === 'a') {
+                player1.velocity.x = -5;
+            } else if (keys.d.pressed && player1.lastKey === 'd') {
+                player1.velocity.x = 5;
+            }
+
+            // Player 2 movement
+            if (keys.ArrowLeft.pressed && player2.lastKey === 'ArrowLeft') {
+                player2.velocity.x = -5;
+            } else if (keys.ArrowRight.pressed && player2.lastKey === 'ArrowRight') {
+                player2.velocity.x = 5;
+            }
+            
+            // 当たり判定
+            if (rectangularCollision({ rectangle1: player1, rectangle2: player2 }) && player1.isAttacking) {
+                player1.isAttacking = false;
+                player2.health -= 10;
+                console.log('Player 1 hit!');
+            }
+             if (rectangularCollision({ rectangle1: player2, rectangle2: player1 }) && player2.isAttacking) {
+                player2.isAttacking = false;
+                player1.health -= 10;
+                console.log('Player 2 hit!');
+            }
+            
+            // HPバー描画
+            c.fillStyle = 'grey';
+            c.fillRect(50, 20, 400, 30);
+            c.fillStyle = 'green';
+            c.fillRect(50, 20, player1.health * 4, 30);
+            
+            c.fillStyle = 'grey';
+            c.fillRect(canvas.width - 450, 20, 400, 30);
+            c.fillStyle = 'green';
+            c.fillRect(canvas.width - 450, 20, player2.health * 4, 30);
+
+            if (player1.health <= 0 || player2.health <= 0) {
+                 c.fillStyle = 'white';
+                 c.font = '60px sans-serif';
+                 c.textAlign = 'center';
+                 c.fillText(player1.health <= 0 ? 'Player 2 Wins' : 'Player 1 Wins', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        animate();
+
+        window.addEventListener('keydown', (event) => {
+            if(player1.health <= 0 || player2.health <= 0) return;
+
+            switch (event.key) {
+                // Player 1
+                case 'd': keys.d.pressed = true; player1.lastKey = 'd'; break;
+                case 'a': keys.a.pressed = true; player1.lastKey = 'a'; break;
+                case 'w': if (player1.velocity.y === 0) player1.velocity.y = -20; break;
+                case 's': player1.attack(); break;
+
+                // Player 2
+                case 'ArrowRight': keys.ArrowRight.pressed = true; player2.lastKey = 'ArrowRight'; break;
+                case 'ArrowLeft': keys.ArrowLeft.pressed = true; player2.lastKey = 'ArrowLeft'; break;
+                case 'ArrowUp': if (player2.velocity.y === 0) player2.velocity.y = -20; break;
+                case 'ArrowDown': player2.attack(); break;
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            switch (event.key) {
+                case 'd': keys.d.pressed = false; break;
+                case 'a': keys.a.pressed = false; break;
+                case 'ArrowRight': keys.ArrowRight.pressed = false; break;
+                case 'ArrowLeft': keys.ArrowLeft.pressed = false; break;
+            }
+        });
+
     </script>
 </body>
 </html>
